@@ -1,0 +1,206 @@
+name: Incident Response OpenEnv
+version: 1.2.0
+openenv_version: "1.0"
+description: |
+  Autonomous SRE incident response benchmark for distributed systems.
+  Agents diagnose hidden root causes under noisy telemetry and execute
+  remediation actions via deterministic OpenEnv transitions.
+
+authors:
+  - name: SRE Environment Team
+    email: sre-team@example.com
+
+environment:
+  class_path: env.incident_env.IncidentEnv
+  init_kwargs:
+    scenario_name: easy_database_restart_1
+    max_steps: 50
+  api_contract: |
+    Implements OpenEnv API:
+    - reset(): initialize deterministic scenario and return initial observation
+    - step(action): returns (observation, reward, done, info)
+    - state(): returns full internal state including hidden variables
+
+determinism:
+  fixed_seed: true
+  seed_source: scenario_seed
+  deterministic_transitions: true
+  reproducible_scenarios: true
+
+capabilities:
+  - multi_step_reasoning
+  - partial_observability
+  - causal_inference
+  - noisy_signal_handling
+
+canonical_service_mapping:
+  db: user-db
+  auth: auth-service
+  api: api-gateway
+  cache: cache-service
+  implementation_names:
+    user-db: database
+    auth-service: auth_service
+    api-gateway: api_gateway
+    cache-service: cache_service
+
+observation_space:
+  model: env.models.Observation
+  description: |
+    Observation visible to the agent at each step.
+    Hidden root-cause labels and internal failure flags are not exposed.
+  fields:
+    timestamp:
+      type: int
+      description: Simulation timestamp.
+    alerts:
+      type: List[Dict[str, str]]
+      description: Alert messages with service, severity, and text.
+      item_schema:
+        service: str
+        severity: enum(info|warning|critical)
+        message: str
+    metrics:
+      type: Dict[str, float]
+      description: Flattened numeric telemetry summary for current step.
+    logs:
+      type: List[str]
+      description: Log lines available to the agent.
+    service_health:
+      type: Dict[str, str]
+      values: enum(healthy|degraded|unhealthy)
+
+action_space:
+  model: env.models.Action
+  description: |
+    Discrete SRE actions over target services.
+    Action semantics are deterministic and scenario-dependent.
+  schema:
+    action_type:
+      type: enum
+      values:
+        - restart_service
+        - investigate_logs
+        - scale_service
+        - rollback_deployment
+        - noop
+    service:
+      type: str|null
+      allowed_values:
+        - user-db
+        - auth-service
+        - api-gateway
+        - cache-service
+      description: Target service for non-noop actions.
+    target_replicas:
+      type: int|null
+      description: Optional target replica count for scaling.
+
+investigation_behavior:
+  description: |
+    investigate_logs reveals higher-signal logs for a service,
+    helping the agent infer root cause more effectively.
+
+reward_function:
+  model: env.models.Reward
+  role: per_step_dense_feedback
+  description: |
+    Step-level dense reward used during interaction.
+    This is not the final benchmark grade.
+  components:
+    root_cause_fix:
+      value: +0.4
+      condition: Root cause fixed at this step.
+    system_recovery:
+      value: +0.2
+      condition: System recovered to healthy thresholds.
+    investigation_reward:
+      value: +0.1
+      condition: Action type is investigate_logs.
+    action_penalty:
+      value: -0.2
+      condition: Wrong or ineffective action.
+    step_penalty:
+      value: -0.05
+      condition: Applied every step.
+
+grader:
+  class_path: env.grader.IncidentGrader
+  role: final_episode_evaluation
+  score_range: [0.0, 1.0]
+  description: |
+    Deterministic end-of-episode grading.
+    Separate from per-step reward feedback.
+  weights:
+    root_cause_fixed: 0.4
+    system_recovered: 0.2
+    action_efficiency: 0.2
+    step_efficiency: 0.1
+    action_sequence_correctness: 0.1
+
+hidden_state:
+  model: env.models.SystemState
+  visible_to_agent: false
+  used_for_grading: true
+  fields:
+    root_cause_service: str|null
+    root_cause_type: str|null
+    memory_leak_active: bool
+    timeout_storm_active: bool
+    retry_storm_active: bool
+    incident_step: int
+    incident_resolved: bool
+    services: Dict[str, Dict]
+    investigated_services: List[str]
+
+episode_termination:
+  conditions:
+    - system fully recovered
+    - max_steps reached
+
+tasks:
+  - name: easy
+    difficulty: 1
+    objective: Recover from direct user-db outage by targeted restart.
+    description: |
+      Clear outage with low ambiguity and direct symptom-to-cause alignment.
+    scenarios:
+      - easy_database_restart_1
+      - easy_database_restart_2
+      - easy_database_restart_3
+    expected_duration_steps: "3-5"
+    misleading_signals: low
+
+  - name: medium
+    difficulty: 2
+    objective: Resolve auth-service failures caused by user-db latency.
+    description: |
+      Misleading alerts emphasize auth-service symptoms while root cause
+      remains in user-db latency/dependency failure.
+    scenarios:
+      - medium_auth_dependency_1
+      - medium_auth_dependency_2
+      - medium_auth_dependency_3
+    expected_duration_steps: "5-10"
+    misleading_signals: medium
+
+  - name: hard
+    difficulty: 3
+    objective: Stop cascading failure and retry storm from memory-leak root cause.
+    description: |
+      Causal chain: memory leak -> CPU spike -> timeouts -> retry storm,
+      with noisy and partially misleading telemetry.
+    scenarios:
+      - hard_cascading_failure_1
+      - hard_cascading_failure_2
+      - hard_cascading_failure_3
+    expected_duration_steps: "8-15"
+    misleading_signals: high
+
+metadata:
+  domain: sre_incident_response
+  benchmark: true
+  real_world_utility: high
+  partial_observability: true
+  noisy_observations: true
+  difficulty_range: [1, 3]
