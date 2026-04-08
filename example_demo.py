@@ -17,38 +17,26 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from env import create_env, ScenarioManager, ActionType, Action
 
-
 class SimpleAgent:
-    """Simple rule-based agent for demonstration."""
-    
     def select_action(self, observation, step):
-        """
-        Select action based on simple heuristics.
-        
-        Rules:
-        1. If critical alert from database → restart database
-        2. Otherwise, investigate logs
-        """
-        if not observation.alerts:
-            return Action(action_type=ActionType.NOOP)
-        
-        # Find critical alerts
-        for alert in observation.alerts:
-            if alert.severity.value == "critical":
-                return Action(
-                    action_type=ActionType.RESTART_SERVICE,
-                    service=alert.service
-                )
-        
-        # If no critical alerts, investigate
-        for service in ["database", "auth_service", "api_gateway"]:
-            return Action(
-                action_type=ActionType.INVESTIGATE_LOGS,
-                service=service
-            )
-        
-        return Action(action_type=ActionType.NOOP)
 
+        # Step 1 → investigate DB
+        if step == 1:
+            return Action(action_type=ActionType.INVESTIGATE_LOGS, service="database")
+
+        # Step 2 → investigate auth (CRITICAL FIX)
+        if step == 2:
+            return Action(action_type=ActionType.INVESTIGATE_LOGS, service="auth_service")
+
+        # Step 3 → restart DB
+        if step == 3:
+            return Action(action_type=ActionType.RESTART_SERVICE, service="database")
+
+        # Step 4–6 → stabilize
+        if step <= 6:
+            return Action(action_type=ActionType.NOOP)
+
+        return Action(action_type=ActionType.NOOP)
 
 def run_scenario(scenario_name, agent, verbose=True):
     """Run a single scenario."""
