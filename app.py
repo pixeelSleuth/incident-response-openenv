@@ -20,7 +20,6 @@ from env import IncidentResponseEnv, ScenarioManager, ActionType, Action
 from env.models import Observation
 from baseline.agent_openai import OpenAIAgent
 
-
 class EnvironmentUI:
     """Manages environment instances for the UI."""
     

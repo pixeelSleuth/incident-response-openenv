@@ -85,7 +85,7 @@ class IncidentResponseEnv:
         observation = self._get_observation()
         self._observations.append(observation)
         
-        return observation
+        return self._get_observation().model_dump()
     
     def step(self, action: Action) -> Tuple[Observation, Reward, bool, Dict]:
         """
@@ -139,7 +139,7 @@ class IncidentResponseEnv:
             "root_cause_type": self._state.root_cause_type,
         }
         
-        return observation, reward, done, info
+        return observation.model_dump(), reward, done, info
     
     def state(self) -> SystemState:
         """
