@@ -31,4 +31,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import sys; sys.exit(0)" || exit 1
 
 # Default command: run UI or baseline based on APP_MODE
-CMD ["sh", "-c", "if [ \"$APP_MODE\" = \"baseline\" ]; then python baseline/run_baseline.py; else python app.py; fi"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
