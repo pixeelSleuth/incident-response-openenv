@@ -6,7 +6,6 @@
 # Python Virtual Environments
 .venv/
 venv/
-ENV/
 *.venv
 
 # Python Compiled Files
